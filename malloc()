@@ -1,0 +1,24 @@
+/* Examining malloc() behavior
+write a program that uses mallinfo() and/or malloc_stats() to examine the system's allocation behavior.
+
+Try allocating a small, medium, and large amount of memory and see how much is allocated by resizing the data segment as compared to memory mapping.
+Try using mallopt() to either turn off memory mapping altogether or to change the threshold between the two techniques.
+*/
+
+#include <malloc.h>
+int main() {
+	printf("Before allocating malloc stats \n");
+	malloc_stats();
+	int *ptr = malloc(sizeof(int) * 10);
+	int *ptr1 = malloc(sizeof(int) * 1000);
+	int *ptr2 = malloc(sizeof(int) * 10000);
+	printf("After allocating malloc stats \n");
+	malloc_stats();
+	mallopt(M_TRIM_THRESHOLD,1000);
+	printf("After mallopt()\n");
+	malloc_stats();
+	printf("freeing memory \n");
+	free(ptr);
+	free(ptr1);
+	free(ptr2);
+}
