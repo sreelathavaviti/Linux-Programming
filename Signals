@@ -45,3 +45,48 @@ main(void)
 		err_sys("SIG_SETMASK error");
 	exit(0);
 }
+/****************(b)  Adapt the previous exercise (or start fresh) to use the sigaction interface.  Set up a   signal set and mask to do this.
+*************/
+#include <stdio.h>
+#include <unistd.h>
+#include <signal.h>
+#include <string.h>
+ 
+static void hdl (int sig, siginfo_t *siginfo, void *context)
+{
+	if(sig == SIGINT ) {
+		printf ("Hello, interrupt occur\n");
+	}
+	else if(sig == SIGQUIT) {
+		printf ("Hello, SIGQUIT occur\n");
+		exit(1);
+	}
+}
+ 
+int main (int argc, char *argv[])
+{
+	struct sigaction act;
+ 
+	memset (&act, '\0', sizeof(act));
+ 
+	/* Use the sa_sigaction field because the handles has two additional parameters */
+	act.sa_sigaction = &hdl;
+ 
+	/* The SA_SIGINFO flag tells sigaction() to use the sa_sigaction field, not sa_handler. */
+	act.sa_flags = SA_SIGINFO;
+ 
+	if (sigaction(SIGINT, &act, NULL) < 0) {
+		perror ("sigaction");
+		return 1;
+	}
+	if (sigaction(SIGQUIT, &act, NULL) < 0) {
+		perror ("sigaction");
+		return 1;
+	}
+ 
+	while (1)
+		sleep (10);
+ 
+	return 0;
+}
+
