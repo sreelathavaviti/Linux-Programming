@@ -1,0 +1,67 @@
+/****************************
+Signal Handler
+Write a C program that includes a signal handler that can handle any signal.  The handler should avoid making any system calls (such as those that might occur doing I/O).
+The handler should simply store the sequence of signals as they come in, and update a counter array for each signal that indicates how many times the signal has been handled.
+The program should begin by suspending processing of all signals (using sigprocmask().
+It should then install the new set of signal handlers (which can be the same for all signals, registering them with the sigaction() interface.
+The program should send every possible signal to itself multiple times, using the raise() function.
+Signal processing should be resumed, once again using sigprocmask).
+Before completing, the program should print out statistics including:
+•	The total number of times each signal was received.
+•	The order in which the signals were received, noting each time the total number of times that signal had been received up to that point.
+*********************/
+#include "apue.h"
+#include <pthread.h>
+int quitflag; /* set nonzero by thread */
+sigset_t mask;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t waitloc = PTHREAD_COND_INITIALIZER;
+	void *
+thr_fn(void *arg)
+{
+	int err, signo;
+	for (;;) {
+		err = sigwait(&mask, &signo);
+		if (err != 0)
+			err_exit(err, "sigwait failed");
+		switch (signo) {
+			case SIGINT:
+				printf("\ninterrupt\n");
+				break;
+			case SIGQUIT:
+				pthread_mutex_lock(&lock);
+				quitflag = 1;
+				pthread_mutex_unlock(&lock);
+				pthread_cond_signal(&waitloc);
+				return(0);
+			default:
+				printf("unexpected signal %d\n", signo);
+				exit(1);
+		}
+	}
+}
+	int
+main(void)
+{
+	int err;
+	sigset_t oldmask;
+	pthread_t tid;
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGINT);
+	sigaddset(&mask, SIGQUIT);
+	if ((err = pthread_sigmask(SIG_BLOCK, &mask, &oldmask)) != 0)
+		err_exit(err, "SIG_BLOCK error");
+	err = pthread_create(&tid, NULL, thr_fn, 0);
+	if (err != 0)
+		err_exit(err, "can’t create thread");
+	pthread_mutex_lock(&lock);
+	while (quitflag == 0)
+		pthread_cond_wait(&waitloc, &lock);
+	pthread_mutex_unlock(&lock);
+	/* SIGQUIT has been caught and is now blocked; do whatever */
+	quitflag = 0;
+	/* reset signal mask which unblocks SIGQUIT */
+	if (sigprocmask(SIG_SETMASK, &oldmask, NULL) < 0)
+		err_sys("SIG_SETMASK error");
+	exit(0);
+}
